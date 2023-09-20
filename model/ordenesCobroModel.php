@@ -190,7 +190,7 @@ class OrdenesCobroModel
             if ((float)$orden["orden_total"] != (float)$pago->valor_deuda) { // Validando que el valor a pagar sea el mismo del sistema
                 $result = array(
                     "codigo_respuesta" => "E002",
-                    "descripcion_respuesta" => "Montos no coinciden, enviando $". $pago->valor_deuda ." es diferente a $" . $orden["orden_total"]
+                    "descripcion_respuesta" => "Montos no coinciden, enviando $". $pago->valor_deuda ." es diferente a la orden de cobro de $" . $orden["orden_total"]
                 );
                 return $result;
             }
@@ -207,6 +207,52 @@ class OrdenesCobroModel
             $result = array(
                 "codigo_respuesta" => "P001",
                 "descripcion_respuesta" => "PAGO EXITOSO"
+            );
+        } else {
+            $result = array(
+                "codigo_respuesta" => "E001",
+                "descripcion_respuesta" => "Orden no encontrada"
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * setReversoPago - Realiza el reverso del pago de la orden y cambia el estado en el sistema
+     */
+    public function setReversoPago($pago)
+    {
+
+        $database = new Database();
+        // $database->query("SELECT * FROM recaudacion.tb_ordenescobro WHERE (orden_estado != 'DESPACHADA' AND orden_estado != 'PAGADO') AND orden_codigo=:orden_codigo");
+        $database->query("SELECT * FROM recaudacion.tb_ordenescobro WHERE orden_codigo=:orden_codigo");
+        $database->bind('orden_codigo', $pago->id_deuda);
+        $orden = $database->single();
+        $database->closeConnection();
+
+        if ($orden) { // validando que existan registros
+
+            if ((float)$orden["orden_total"] != (float)$pago->valor_deuda) { // Validando que el valor a pagar sea el mismo del sistema
+                $result = array(
+                    "codigo_respuesta" => "E002",
+                    "descripcion_respuesta" => "Montos no coinciden, enviando $". $pago->valor_deuda ." es diferente a la orden de cobro de $" . $orden["orden_total"]
+                );
+                return $result;
+            }
+
+            // TODO: crear tabla para registro de pagos en linea de coopmego y guardar los campos
+
+            // Actualización de valores en la tabla de ordenes de cobro
+            $database = new Database();
+            $database->query("UPDATE recaudacion.tb_ordenescobro SET orden_estado = 'GENERADA' WHERE orden_codigo=:orden_codigo");
+            $database->bind('orden_codigo', $pago->id_deuda);
+            $orden = $database->execute();
+            $database->closeConnection();
+
+            $result = array(
+                "codigo_respuesta" => "R001",
+                "descripcion_respuesta" => "REVERSO DE PAGO EXITOSO"
             );
         } else {
             $result = array(
